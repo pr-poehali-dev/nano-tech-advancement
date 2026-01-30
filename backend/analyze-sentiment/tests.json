@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "Positive text analysis",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "text": "Это отличный продукт! Мне очень нравится, спасибо большое!"
+      },
+      "expectedStatus": 200
+    },
+    {
+      "name": "Negative text analysis",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "text": "Ужасное качество, полное разочарование. Не рекомендую никому."
+      },
+      "expectedStatus": 200
+    }
+  ]
+}

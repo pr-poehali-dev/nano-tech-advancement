@@ -19,7 +19,7 @@ export default function AnalyzerForm() {
 
     setLoading(true);
     try {
-      const response = await fetch("/api/analyze-sentiment", {
+      const response = await fetch("https://functions.poehali.dev/87cb021e-3df1-4f71-b0d8-4df60822b25e", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -70,16 +70,20 @@ export default function AnalyzerForm() {
           Анализатор тональности
         </h2>
         <p className="text-center text-neutral-600 mb-12">
-          Вставьте текст для мгновенного анализа эмоционального окраса
+          Вставьте любой объём текста — от одного предложения до целых столбцов из Google Docs
         </p>
 
         <Card className="p-6 shadow-lg">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Вставьте сюда текст для анализа... Например, отзыв клиента, комментарий или сообщение."
-            className="min-h-[200px] text-base mb-4 resize-none"
+            placeholder="Вставьте сюда текст для анализа... Можно скопировать целый столбец из Google Docs, списки отзывов или большие тексты."
+            className="min-h-[400px] max-h-[600px] text-base mb-4 resize-y overflow-auto"
           />
+          
+          <div className="text-sm text-neutral-500 mb-4">
+            Символов: {text.length}
+          </div>
 
           <Button
             onClick={analyzeSentiment}
