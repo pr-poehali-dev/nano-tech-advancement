@@ -1,8 +1,56 @@
 import json
 import re
 
+def analyze_single_text(text: str) -> dict:
+    '''Анализирует тональность одного текста'''
+    text_lower = text.lower()
+    
+    positive_words = [
+        'хорошо', 'отлично', 'прекрасно', 'замечательно', 'великолепно',
+        'супер', 'класс', 'круто', 'нравится', 'люблю', 'радость',
+        'счастье', 'восторг', 'благодарность', 'спасибо', 'молодец',
+        'удачно', 'успешно', 'приятно', 'рад', 'довольн', 'восхищ',
+        'идеальн', 'превосходн', 'чудесн', 'отличн', '👍', '😊', '❤️', '🔥'
+    ]
+    
+    negative_words = [
+        'плохо', 'ужасно', 'отвратительно', 'кошмар', 'ужас',
+        'не нравится', 'ненавижу', 'разочарование', 'грусть', 'печаль',
+        'злость', 'гнев', 'проблема', 'неудача', 'провал', 'жалоба',
+        'претензия', 'недовольн', 'расстроен', 'разочарован', 'обман',
+        'плохой', 'худший', 'ужасный', 'неприятн', '👎', '😠', '😡', '💔'
+    ]
+    
+    positive_count = sum(1 for word in positive_words if word in text_lower)
+    negative_count = sum(1 for word in negative_words if word in text_lower)
+    
+    exclamations = len(re.findall(r'!+', text))
+    
+    if exclamations > 2:
+        positive_count += 1
+    
+    total_markers = positive_count + negative_count
+    
+    if total_markers == 0:
+        sentiment = 'neutral'
+        confidence = 0.5
+    elif positive_count > negative_count:
+        sentiment = 'positive'
+        confidence = min(0.6 + (positive_count / max(total_markers, 1)) * 0.4, 0.95)
+    elif negative_count > positive_count:
+        sentiment = 'negative'
+        confidence = min(0.6 + (negative_count / max(total_markers, 1)) * 0.4, 0.95)
+    else:
+        sentiment = 'neutral'
+        confidence = 0.55
+    
+    return {
+        'sentiment': sentiment,
+        'confidence': confidence
+    }
+
 def handler(event: dict, context) -> dict:
-    '''Анализирует тональность текста: определяет позитив, негатив или нейтральный окрас'''
+    '''Анализирует тональность текста или массива строк'''
     
     method = event.get('httpMethod', 'POST')
     
@@ -29,69 +77,61 @@ def handler(event: dict, context) -> dict:
     
     try:
         body = json.loads(event.get('body', '{}'))
-        text = body.get('text', '').strip().lower()
         
-        if not text:
+        if 'lines' in body:
+            lines = body['lines']
+            if not lines or not isinstance(lines, list):
+                return {
+                    'statusCode': 400,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({'error': 'Массив строк не может быть пустым'})
+                }
+            
+            results = []
+            for line in lines:
+                if line.strip():
+                    analysis = analyze_single_text(line)
+                    results.append({
+                        'line': line,
+                        'sentiment': analysis['sentiment'],
+                        'confidence': analysis['confidence']
+                    })
+            
             return {
-                'statusCode': 400,
+                'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 },
-                'body': json.dumps({'error': 'Текст не может быть пустым'})
+                'body': json.dumps({'results': results})
             }
         
-        positive_words = [
-            'хорошо', 'отлично', 'прекрасно', 'замечательно', 'великолепно',
-            'супер', 'класс', 'круто', 'нравится', 'люблю', 'радость',
-            'счастье', 'восторг', 'благодарность', 'спасибо', 'молодец',
-            'удачно', 'успешно', 'приятно', 'рад', 'довольн', 'восхищ',
-            'идеальн', 'превосходн', 'чудесн', 'отличн', '👍', '😊', '❤️', '🔥'
-        ]
-        
-        negative_words = [
-            'плохо', 'ужасно', 'отвратительно', 'кошмар', 'ужас',
-            'не нравится', 'ненавижу', 'разочарование', 'грусть', 'печаль',
-            'злость', 'гнев', 'проблема', 'неудача', 'провал', 'жалоба',
-            'претензия', 'недовольн', 'расстроен', 'разочарован', 'обман',
-            'плохой', 'худший', 'ужасный', 'неприятн', '👎', '😠', '😡', '💔'
-        ]
-        
-        positive_count = sum(1 for word in positive_words if word in text)
-        negative_count = sum(1 for word in negative_words if word in text)
-        
-        exclamations = len(re.findall(r'!+', text))
-        questions = len(re.findall(r'\?+', text))
-        
-        if exclamations > 2:
-            positive_count += 1
-        
-        total_markers = positive_count + negative_count
-        
-        if total_markers == 0:
-            sentiment = 'neutral'
-            confidence = 0.5
-        elif positive_count > negative_count:
-            sentiment = 'positive'
-            confidence = min(0.6 + (positive_count / max(total_markers, 1)) * 0.4, 0.95)
-        elif negative_count > positive_count:
-            sentiment = 'negative'
-            confidence = min(0.6 + (negative_count / max(total_markers, 1)) * 0.4, 0.95)
         else:
-            sentiment = 'neutral'
-            confidence = 0.55
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({
-                'sentiment': sentiment,
-                'confidence': confidence
-            })
-        }
+            text = body.get('text', '').strip()
+            
+            if not text:
+                return {
+                    'statusCode': 400,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    'body': json.dumps({'error': 'Текст не может быть пустым'})
+                }
+            
+            analysis = analyze_single_text(text)
+            
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps(analysis)
+            }
     
     except Exception as e:
         return {
